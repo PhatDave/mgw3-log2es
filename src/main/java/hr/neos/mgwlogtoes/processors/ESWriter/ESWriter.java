@@ -1,4 +1,4 @@
-package hr.neos.mgwlogtoes.processors.FileReaderProcessor;
+package hr.neos.mgwlogtoes.processors.ESWriter;
 
 import hr.neos.mgwlogtoes.processors.Processor;
 import hr.neos.mgwlogtoes.processors.Task;
@@ -9,35 +9,30 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 
-public class FileReaderProcessor implements Processor {
-	private final Map<Path, Stack<String>> lines = new HashMap<>();
+public class ESWriter implements Processor {
+	private Map<Path, Stack<String>> inputLines;
 	private final ThreadPoolExecutor executor;
 	private final List<Task> pendingTasks = new ArrayList<>();
 	private final List<Future> runningTasks = new ArrayList<>();
-	private Path path;
+	private Integer threadsPerPath;
 
-	public FileReaderProcessor() {
+	public ESWriter(Map<Path, Stack<String>> inputLines, Integer threadsPerPath) {
 		this.executor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
-	}
-
-	public List<Stack<String>> start(List<Path> paths) {
-		List<Stack<String>> lines = new ArrayList<>();
-		for (Path path : paths) {
-			lines.add(start(path));
-		}
-		return lines;
-	}
-
-	public Stack<String> start(Path path) {
-		Stack<String> lines = new Stack<>();
-		this.lines.put(path, lines);
-		pendingTasks.add(new FileReaderTask(path, lines));
-		start();
-		return lines;
+		this.inputLines = inputLines;
+		this.threadsPerPath = threadsPerPath;
 	}
 
 	@Override
 	public void start() {
+		for (int i = 0; i < threadsPerPath; i++) {
+			inputLines.forEach((path, lines) -> {
+				if (lines.isEmpty()) {
+					return;
+				}
+//				pendingTasks.add(new ESWriterTask(lines));
+			});
+		}
+
 		if (pendingTasks.isEmpty()) {
 			return;
 		}

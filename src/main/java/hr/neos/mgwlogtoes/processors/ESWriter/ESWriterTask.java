@@ -1,4 +1,4 @@
-package hr.neos.mgwlogtoes.processors.FileReaderProcessor;
+package hr.neos.mgwlogtoes.processors.ESWriter;
 
 import hr.neos.mgwlogtoes.processors.Task;
 
@@ -9,13 +9,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Stack;
 
-public class FileReaderTask implements Task {
-	private final Stack<String> output;
+public class ESWriterTask implements Task {
+	private final Stack<String> lines;
 	private final Path path;
 
-	public FileReaderTask(Path path, Stack<String> output) {
+	public ESWriterTask(Path path, Stack<String> lines) {
 		this.path = path;
-		this.output = output;
+		this.lines = lines;
 	}
 
 	@Override
@@ -25,7 +25,7 @@ public class FileReaderTask implements Task {
 
 			String line;
 			while ((line = reader.readLine()) != null) {
-				output.add(line.trim());
+				lines.add(line.trim());
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);

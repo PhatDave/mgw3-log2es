@@ -8,8 +8,6 @@ import java.util.concurrent.Future;
 public interface Processor {
 	void start();
 
-	Stack<String> start(Path path);
-
 	default void waitUntilDone() {
 		getPendingTasks().forEach(task -> {
 			try {
