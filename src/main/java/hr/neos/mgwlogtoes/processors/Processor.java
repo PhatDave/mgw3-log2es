@@ -1,17 +1,14 @@
 package hr.neos.mgwlogtoes.processors;
 
-import java.nio.file.Path;
 import java.util.List;
-import java.util.Stack;
-import java.util.concurrent.Future;
 
 public interface Processor {
 	void start();
 
 	default void waitUntilDone() {
-		getPendingTasks().forEach(task -> {
+		getThreads().forEach(thread -> {
 			try {
-				task.get();
+				thread.join();
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -22,5 +19,5 @@ public interface Processor {
 
 	void stopWhenDone();
 
-	List<Future> getPendingTasks();
+	List<Thread> getThreads();
 }
