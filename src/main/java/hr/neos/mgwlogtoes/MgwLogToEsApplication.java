@@ -4,6 +4,8 @@ import lombok.SneakyThrows;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.errors.TopicExistsException;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -18,6 +20,7 @@ public class MgwLogToEsApplication {
 	public static Properties baseConsumerProperties = new Properties();
 	public static Properties fileDataProducerProperties = new Properties();
 	public static Properties fileDataConsumerProperties = new Properties();
+	public static AdminClient adminClient;
 
 	@SneakyThrows
 	public static void main(String[] args) {
@@ -43,19 +46,22 @@ public class MgwLogToEsApplication {
 
 		fileDataConsumerProperties = (Properties) baseConsumerProperties.clone();
 		fileDataConsumerProperties.put("topic", TOPIC_PREFIX + "file-data");
-		fileDataConsumerProperties.put("maxPollRecords", 100);
+		fileDataConsumerProperties.put("maxPollRecords", 10000);
+
+
+		Properties adminClientProps = new Properties();
+		adminClientProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+		adminClient = AdminClient.create(adminClientProps);
 
 		deleteTopic(TOPIC_PREFIX + "file-data");
+		createTopic(TOPIC_PREFIX + "file-data");
+		adminClient.close();
+
 		SpringApplication.run(MgwLogToEsApplication.class, args);
 	}
 
 	public static void deleteTopic(String topic) {
-		Properties props = new Properties();
-		props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-
-		AdminClient client = AdminClient.create(props);
-
-		DeleteTopicsResult result = client.deleteTopics(Collections.singletonList(topic));
+		DeleteTopicsResult result = adminClient.deleteTopics(Collections.singletonList(topic));
 
 		try {
 			result.all().get();
@@ -64,8 +70,20 @@ public class MgwLogToEsApplication {
 			System.out.println("Failed to delete topic: " + e.getMessage());
 		} catch (InterruptedException e) {
 			System.out.println("Failed to delete topic: " + e.getMessage());
-		} finally {
-			client.close();
+		}
+	}
+
+	public static void createTopic(String topic) {
+		try {
+			adminClient.createTopics(Collections.singletonList(new NewTopic(topic, 32, (short) 1))).all().get();
+		} catch (InterruptedException | ExecutionException e) {
+			if (e.getCause() instanceof TopicExistsException) {
+				System.out.println("Topic already exists");
+				deleteTopic(topic);
+				createTopic(topic);
+			} else {
+				e.printStackTrace();
+			}
 		}
 	}
 }
