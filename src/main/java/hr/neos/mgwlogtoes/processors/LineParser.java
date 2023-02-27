@@ -1,18 +1,26 @@
 package hr.neos.mgwlogtoes.processors;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import hr.neos.mgwlogtoes.MgwLogToEsApplication;
 import hr.neos.mgwlogtoes.entity.LogLineData;
 import hr.neos.mgwlogtoes.repository.ESRepository;
 import lombok.Setter;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.elasticsearch.common.regex.Regex;
 import org.springframework.stereotype.Service;
 
+import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 @Service
@@ -24,6 +32,7 @@ public class LineParser implements Processor {
 	private boolean run = true;
 	private boolean stopDemanded = false;
 	private final SimpleDateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+	private final Pattern pattern = Pattern.compile("^([0-9\\-:.]+ [0-9\\-:.]+)\\s*(\\w+)[ 0-9\\-]+\\[([0-9a-zA-Z\\-]+)]\\s*([0-9a-zA-Z\\-.]+)", Pattern.CASE_INSENSITIVE);
 
 	public LineParser(ESRepository esRepository) {
 		this.esRepository = esRepository;
@@ -39,28 +48,22 @@ public class LineParser implements Processor {
 				while (run) {
 					ConsumerRecords<String, String> records = consumer.poll(100);
 
-					StreamSupport.stream(records.spliterator(), true).forEach(record -> {
-								LogLineData.LogLineDataBuilder builder = LogLineData.builder();
-								builder.line(record.value());
+					Stream<ConsumerRecord<String, String>> stream = StreamSupport.stream(records.spliterator(), true);
+					List<LogLineData> logLineDatas = stream
+							.map(record -> {
+										LogLineData.LogLineDataBuilder builder = LogLineData.builder();
+										builder.line(record.value());
 
-								String key = record.key();
-								String lineNumber = key.split("-")[1];
-								builder.lineNumber(Long.valueOf(lineNumber));
-								builder.filePath(key.split("-")[0]);
+										String key = record.key();
+										String lineNumber = key.split("-")[1];
+										builder.lineNumber(Long.valueOf(lineNumber));
+										builder.filePath(key.split("-")[0]);
 
-								try {
-									builder.timestamp(dateTimeFormat.parse(record.value().substring(0, 23).trim()).getTime());
-								} catch (ParseException e) {
-								}
-								builder.level(record.value().substring(24, 30).trim());
-								builder.threadName(record.value().substring(31, 47).trim());
-								builder.className(record.value().substring(48, 60).trim());
-
-								LogLineData logLineData = builder.build();
-
-								esRepository.save(logLineData);
-							}
-					);
+										parseInfo(builder, record.value());
+										return builder.build();
+									}
+							).toList();
+					esRepository.saveAll(logLineDatas);
 
 					if (stopDemanded) {
 						run = false;
@@ -69,6 +72,20 @@ public class LineParser implements Processor {
 			});
 			threads.add(thread);
 			thread.start();
+		}
+	}
+
+	public void parseInfo(LogLineData.LogLineDataBuilder builder, String line) {
+		Matcher matcher = pattern.matcher(line);
+		if (matcher.find()) {
+			try {
+				builder.timestamp(dateTimeFormat.parse(matcher.group(1)));
+			} catch (ParseException e) {
+				throw new RuntimeException(e);
+			}
+			builder.level(matcher.group(2));
+			builder.threadName(matcher.group(3));
+			builder.className(matcher.group(4));
 		}
 	}
 
