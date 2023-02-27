@@ -1,5 +1,19 @@
 version: "3.7"
 services:
+  mgw3-kafka-cluster:
+    image: landoop/fast-data-dev:1.1.0
+    environment:
+      - ADV_HOST=127.0.0.1
+      - RUNTESTS=0
+      - SAMPLEDATA=0
+      - es.set.netty.runtime.available.processors=false
+    ports:
+      - 2181:2181                 # Zookeeper
+      - 3030:3030                 # Landoop UI
+      - 8081-8083:8081-8083       # REST Proxy, Schema Registry, Kafka Connect ports
+      - 9581-9585:9581-9585       # JMX Ports
+      - 9092:9092                 # Kafka Broker
+      
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.6.1
     container_name: elasticsearch
@@ -20,6 +34,7 @@ services:
       - ./elasticsearch-data:/usr/share/elasticsearch/data
     ports:
       - "9205:9200"
+
   kibana:
     container_name: kibana
     image: docker.elastic.co/kibana/kibana:8.6.1
