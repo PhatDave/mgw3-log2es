@@ -23,12 +23,12 @@ import java.util.stream.StreamSupport;
 public class LineParser implements Processor {
 	private final ESRepository esRepository;
 	private final List<Thread> threads = new ArrayList<>();
+	private final Pattern datePattern = Pattern.compile("(\\d+)-(\\d+)-(\\d+) (\\d+):(\\d+):(\\d+)\\.(\\d+)");
+	private final Pattern pattern = Pattern.compile("^([0-9\\-:.]+ [0-9\\-:.]+)\\s*(\\w+)[ 0-9\\-]+\\[([0-9a-zA-Z\\-]+)]\\s*([0-9a-zA-Z\\-.]+)", Pattern.CASE_INSENSITIVE);
 	@Setter
 	private Integer threadCount;
 	private boolean run = true;
 	private boolean stopDemanded = false;
-	private final Pattern datePattern = Pattern.compile("(\\d+)-(\\d+)-(\\d+) (\\d+):(\\d+):(\\d+)\\.(\\d+)");
-	private final Pattern pattern = Pattern.compile("^([0-9\\-:.]+ [0-9\\-:.]+)\\s*(\\w+)[ 0-9\\-]+\\[([0-9a-zA-Z\\-]+)]\\s*([0-9a-zA-Z\\-.]+)", Pattern.CASE_INSENSITIVE);
 
 	public LineParser(ESRepository esRepository) {
 		this.esRepository = esRepository;
