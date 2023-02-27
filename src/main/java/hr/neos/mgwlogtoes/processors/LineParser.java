@@ -7,7 +7,6 @@ import lombok.Setter;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.springframework.data.elasticsearch.BulkFailureException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -24,7 +23,6 @@ public class LineParser implements Processor {
 	private final ESRepository esRepository;
 	private final List<Thread> threads = new ArrayList<>();
 	private final Pattern datePattern = Pattern.compile("(\\d+)-(\\d+)-(\\d+) (\\d+):(\\d+):(\\d+)\\.(\\d+)");
-	private final Pattern pattern = Pattern.compile("^([0-9\\-:.]+ [0-9\\-:.]+)\\s*(\\w+)[ 0-9\\-]+\\[([0-9a-zA-Z\\-]+)]\\s*([0-9a-zA-Z\\-.]+)", Pattern.CASE_INSENSITIVE);
 	@Setter
 	private Integer threadCount;
 	private boolean run = true;
@@ -59,11 +57,7 @@ public class LineParser implements Processor {
 						return builder.build();
 					}).toList();
 					System.out.println(logLineDatas.size());
-					try {
-						esRepository.saveAll(logLineDatas);
-					} catch (BulkFailureException e) {
-						System.out.println(e.getMessage());
-					}
+					esRepository.saveAll(logLineDatas);
 
 					if (stopDemanded) {
 						run = false;
@@ -76,13 +70,18 @@ public class LineParser implements Processor {
 	}
 
 	public void parseInfo(LogLineData.LogLineDataBuilder builder, String line) {
-		Matcher matcher = pattern.matcher(line);
-		if (matcher.find()) {
-			String source = matcher.group(1).trim();
-			builder.timestamp(toLocalDateTime(source));
-			builder.level(matcher.group(2));
-			builder.threadName(matcher.group(3));
-			builder.className(matcher.group(4));
+		String[] fields = line.split("\\s+");
+		try {
+			String date = fields[0] + " " + fields[1];
+			String logLevel = fields[2];
+			String thread = fields[5];
+			String className = fields[6];
+
+			builder.timestamp(toLocalDateTime(date));
+			builder.level(logLevel);
+			builder.threadName(thread);
+			builder.className(className);
+		} catch (IndexOutOfBoundsException e) {
 		}
 	}
 
