@@ -8,11 +8,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Stack;
 
 @Component
 @RequiredArgsConstructor
@@ -22,7 +18,6 @@ public class EntrypointService {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void startup() {
-		Map<Path, Stack<String>> fileData = new HashMap<>();
 		File root = new File(ROOT_PATH);
 		File[] files = root.listFiles();
 		if (files == null) {
@@ -31,7 +26,7 @@ public class EntrypointService {
 		files = Arrays.stream(files).filter(File::isFile).toArray(File[]::new);
 
 		FileReader fileReader = new FileReader(Arrays.stream(files).map(File::toPath).toList());
-		lineParser.setThreadCount(8);
+		lineParser.setThreadCount(16);
 
 		fileReader.start();
 		lineParser.start();

@@ -46,7 +46,7 @@ public class MgwLogToEsApplication {
 
 		fileDataConsumerProperties = (Properties) baseConsumerProperties.clone();
 		fileDataConsumerProperties.put("topic", TOPIC_PREFIX + "file-data");
-		fileDataConsumerProperties.put("maxPollRecords", 10000);
+		fileDataConsumerProperties.put("max.poll.records", "2000");
 
 
 		Properties adminClientProps = new Properties();
